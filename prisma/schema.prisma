@@ -1,0 +1,237 @@
+// Loop — Prisma schema
+// Multi-tenant feedback & roadmap SaaS.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Auth (NextAuth / Auth.js)
+// ---------------------------------------------------------------------------
+
+enum GlobalRole {
+  USER
+  ADMIN
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String? // present for email/password sign-in
+  role          GlobalRole @default(USER)
+  createdAt     DateTime  @default(now())
+
+  accounts     Account[]
+  sessions     Session[]
+  projects     Project[]       @relation("ProjectOwner")
+  memberships  ProjectMember[]
+  posts        Post[]
+  comments     Comment[]
+  votes        Vote[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---------------------------------------------------------------------------
+// Tenancy
+// ---------------------------------------------------------------------------
+
+enum MemberRole {
+  ADMIN
+  MEMBER
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String?
+  accentColor String   @default("#6366f1")
+  ownerId     String
+  createdAt   DateTime @default(now())
+
+  owner     User            @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members   ProjectMember[]
+  boards    Board[]
+  posts     Post[]
+  changelog ChangelogEntry[]
+}
+
+model ProjectMember {
+  id        String     @id @default(cuid())
+  projectId String
+  userId    String
+  role      MemberRole @default(MEMBER)
+  createdAt DateTime   @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+}
+
+// A project can group posts into boards (e.g. "Feature Requests", "Bugs").
+model Board {
+  id        String  @id @default(cuid())
+  projectId String
+  slug      String
+  name      String
+  color     String  @default("#6366f1")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  posts   Post[]
+
+  @@unique([projectId, slug])
+}
+
+// ---------------------------------------------------------------------------
+// Feedback
+// ---------------------------------------------------------------------------
+
+enum PostType {
+  FEATURE
+  BUG
+  IMPROVEMENT
+}
+
+enum PostStatus {
+  OPEN
+  UNDER_REVIEW
+  PLANNED
+  IN_PROGRESS
+  SHIPPED
+  CLOSED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model Post {
+  id        String     @id @default(cuid())
+  projectId String
+  boardId   String?
+  authorId  String?
+  title     String
+  body      String     @db.Text
+  type      PostType   @default(FEATURE)
+  status    PostStatus @default(OPEN)
+  priority  Priority?
+  pinned    Boolean    @default(false)
+
+  // AI metadata
+  aiSummary     String? @db.Text
+  aiThemes      String? @db.Text // JSON array of strings
+  clusterId     String?
+  aiPriorityHint String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  board    Board?    @relation(fields: [boardId], references: [id], onDelete: SetNull)
+  author   User?     @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  votes    Vote[]
+  comments Comment[]
+  cluster  Cluster?  @relation(fields: [clusterId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, status])
+  @@index([clusterId])
+}
+
+model Vote {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  authorId  String?
+  body      String   @db.Text
+  isOfficial Boolean @default(false) // posted by an admin/team member
+  createdAt DateTime @default(now())
+
+  post   Post  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([postId])
+}
+
+// Groups near-duplicate posts discovered by the AI clustering pass.
+model Cluster {
+  id        String   @id @default(cuid())
+  projectId String
+  label     String
+  summary   String?  @db.Text
+  createdAt DateTime @default(now())
+
+  posts Post[]
+
+  @@index([projectId])
+}
+
+model ChangelogEntry {
+  id          String   @id @default(cuid())
+  projectId   String
+  title       String
+  body        String   @db.Text
+  version     String?
+  publishedAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}

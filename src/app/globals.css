@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", "Menlo", monospace;
+
+  --bg: 240 20% 99%;
+  --surface: 0 0% 100%;
+  --surface-2: 240 20% 97%;
+  --border: 240 15% 90%;
+  --fg: 240 20% 12%;
+  --muted: 240 8% 46%;
+
+  --brand: 243 75% 59%;
+  --brand-fg: 0 0% 100%;
+  --brand-soft: 243 90% 96%;
+
+  --success: 152 60% 40%;
+  --warning: 35 92% 50%;
+  --danger: 349 75% 55%;
+
+  --shadow: 240 40% 30%;
+  --radius: 0.85rem;
+
+  color-scheme: light;
+}
+
+.dark {
+  --bg: 240 24% 7%;
+  --surface: 240 20% 10%;
+  --surface-2: 240 18% 13%;
+  --border: 240 14% 20%;
+  --fg: 240 18% 96%;
+  --muted: 240 10% 62%;
+
+  --brand: 243 85% 72%;
+  --brand-fg: 240 30% 10%;
+  --brand-soft: 243 60% 18%;
+
+  --shadow: 240 60% 2%;
+  color-scheme: dark;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: hsl(var(--bg));
+  color: hsl(var(--fg));
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Thin, modern scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border));
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Focus ring — accessible and consistent */
+:focus-visible {
+  outline: 2px solid hsl(var(--brand));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, hsl(var(--border) / 0.5) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--border) / 0.5) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 50%, transparent 100%);
+  }
+  .glass {
+    background-color: hsl(var(--surface) / 0.72);
+    backdrop-filter: saturate(180%) blur(12px);
+  }
+}
